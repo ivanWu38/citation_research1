@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citation Japan 企業分析ダッシュボード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: "Calm Harmony" (White, Slate Gray, Indigo) -->
+    <!-- Application Structure Plan: 
+        本SPAは、レポートの章立てをそのまま踏襲するのではなく、「トップ（核心的価値）」→「強みの深掘り（Core）」→「サービス詳細（Service）」→「市場と競合（Market）」→「将来展望（Outlook）」という、ユーザーが企業を理解しやすいストーリーラインに基づき設計。
+        インタラクションとして、ヘッダーナビゲーションによるスクロール、タブ切り替え（強みの深掘り、将来展望）、アコーディオン（サービス詳細）を採用。これにより、情報過多を避けつつ、ユーザーが能動的に関心のある情報を深掘りできる構造とした。
+        この設計は、大学関係者や競合分析担当者が、企業の全体像から具体的な強み、市場での立ち位置、そして将来性までをシームレスに把握することを目的としている。
+    -->
+    <!-- Visualization & Content Choices: 
+        1.  情報: 大学が直面する主要課題（市場トレンド）
+            目的: Citation Japanのサービスが必要とされる背景（市場ニーズ）を視覚化する。
+            手法: ドーナツチャート。
+            インタラクション: ホバーで各課題（少子化、研究力、資金）のパーセンテージと詳細を表示。
+            正当化: 課題の構成比率と重要度を一目で理解させるため。
+            ライブラリ: Chart.js (Canvas)。
+        2.  情報: 競合ポジショニング
+            目的: 市場におけるCitation Japanの独自性と立ち位置を明確にする。
+            手法: バブルチャート（散布図）。
+            インタラクション: ホバーで各競合（Elsevier, Clarivate, 国内シンクタンク等）の名称と特徴（X軸: グローバル/国内, Y軸: ツール/コンサル）を表示。
+            正当化: 複数の競合との相対的な位置関係を2軸で視覚的に比較するため。
+            ライブラリ: Chart.js (Canvas)。
+        3.  情報: サービスラインナップ、強みの詳細、将来展望
+            目的: 詳細情報を整理し、コンパクトに提示する。
+            手法: HTML/TailwindとVanilla JSによるタブ切り替えおよびアコーディオン。
+            インタラクション: クリックでコンテンツの表示/非表示を切り替え。
+            正当化: 画面スペースを節約し、ユーザーが必要な情報にドリルダウンできるUIを提供するため。
+            ライブラリ: Vanilla JS。
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8f9fa; 
+        }
+        .nav-link {
+            @apply px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:text-indigo-600 hover:bg-indigo-50 transition-colors duration-200;
+        }
+        .nav-link.active {
+            @apply text-indigo-600 bg-indigo-100;
+        }
+        .section-title {
+            @apply text-3xl font-bold text-gray-900 mb-4;
+        }
+        .section-subtitle {
+            @apply text-lg text-gray-600 mb-8 max-w-3xl mx-auto;
+        }
+        .tab-button {
+            @apply px-4 py-2 font-medium text-sm rounded-lg transition-all duration-200;
+        }
+        .tab-button.active {
+            @apply bg-indigo-600 text-white shadow-md;
+        }
+        .tab-button:not(.active) {
+            @apply text-gray-600 hover:bg-gray-200;
+        }
+        .accordion-header {
+            @apply w-full flex justify-between items-center p-4 text-left font-semibold text-gray-800 bg-white rounded-lg shadow-sm hover:bg-gray-50 transition-colors duration-200 cursor-pointer;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <header class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex-shrink-0 flex items-center">
+                    <span class="text-2xl font-bold text-indigo-600">Citation Japan</span>
+                    <span class="ml-2 text-sm font-semibold text-gray-600">企業分析</span>
+                </div>
+                <div class="hidden sm:ml-6 sm:flex sm:space-x-4">
+                    <a href="#top" class="nav-link active" data-section="top">トップ</a>
+                    <a href="#core" class="nav-link" data-section="core">強みの深掘り</a>
+                    <a href="#service" class="nav-link" data-section="service">サービス</a>
+                    <a href="#market" class="nav-link" data-section="market">市場と競合</a>
+                    <a href="#outlook" class="nav-link" data-section="outlook">将来展望</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="top" class="py-20 md:py-28 text-center bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
+                    Citation Japan: <br class="sm:hidden">
+                    <span class="text-indigo-600">大学の「知」を価値に変える</span>、<br>データ参謀
+                </h1>
+                <p class="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-gray-600">
+                    本分析は、高等教育機関に特化したコンサルティングファーム、シタシオン ジャパン株式会社を深掘りします。独自のデータ分析力を武器に、日本の大学が直面する課題解決を支援する同社の強み、市場での立ち位置、そしてAI時代における展望をインタラクティブに解説します。
+                </p>
+                <div class="mt-10 flex justify-center gap-4">
+                    <a href="#core" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-duration-200">
+                        分析の核心を見る
+                    </a>
+                    <a href="#market" class="px-6 py-3 bg-white text-indigo-600 font-semibold rounded-lg border border-indigo-200 hover:bg-indigo-50 transition-duration-200">
+                        市場ポジションは？
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section id="core" class="py-20 bg-gray-50 text-center">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="section-title">強みの深掘り: なぜ選ばれるのか</h2>
+                <p class="section-subtitle">
+                    Citation Japanの競争優位性は、単なるデータ提供に留まりません。高等教育分野への深い理解に基づき、「研究力」「教育力」「経営力」という大学の根幹をデータで繋ぎ、具体的な戦略に昇華させる能力にあります。
+                </p>
+                
+                <div class="max-w-3xl mx-auto">
+                    <div class="mb-6 flex justify-center bg-white rounded-lg p-1.5 shadow-inner space-x-1">
+                        <button class="tab-button flex-1 active" data-tab-target="#core-tab-1">
+                            <span class="text-lg">🔬</span> 研究力分析
+                        </button>
+                        <button class="tab-button flex-1" data-tab-target="#core-tab-2">
+                            <span class="text-lg">📊</span> IR (経営・教育)
+                        </button>
+                        <button class="tab-button flex-1" data-tab-target="#core-tab-3">
+                            <span class="text-lg">💡</span> 独自の立ち位置
+                        </button>
+                    </div>
+
+                    <div class="text-left bg-white p-6 rounded-lg shadow-md min-h-[300px]">
+                        <div id="core-tab-1" class="tab-content space-y-4">
+                            <h3 class="text-xl font-bold text-indigo-700">核兵器: 独自の「研究力指標」</h3>
+                            <p class="text-gray-700">
+                                同社の最大の武器は、独自の論文データベースと分析指標（通称「Citation Score」）です。これにより、グローバルな文献データベース（ScopusやWeb of Science）だけでは見えにくい、国内の学会発表や紀要を含めた多角的な研究アウトプットを評価できます。
+                            </p>
+                            <p class="text-gray-700">
+                                これは、文科省の大学ファンド配分や科研費獲得競争が激化する中、自大学の「真の研究力」を把握し、強みを伸ばす戦略を立てたい大学にとって強力な羅針盤となります。
+                            </p>
+                        </div>
+                        <div id="core-tab-2" class="tab-content hidden space-y-4">
+                            <h3 class="text-xl font-bold text-indigo-700">大学経営の「ダッシュボード」を提供</h3>
+                            <p class="text-gray-700">
+                                IR (インスティテューショナル・リサーチ) 支援は同社のもう一つの柱です。単にデータを可視化するだけでなく、学内のバラバラな情報（学生の成績、満足度調査、財務状況、教員業績）を統合し、経営判断に直結するインサイトを導き出します。
+                            </p>
+                            <p class="text-gray-700">
+                                特に、学生の学習成果や満足度を分析し、退学防止や教育の質改善に繋げる「教育成果分析」は、少子化時代に学生一人ひとりのLTV（生涯価値）最大化を目指す大学にとって不可欠なサービスです。
+                            </p>
+                        </div>
+                        <div id="core-tab-3" class="tab-content hidden space-y-4">
+                            <h3 class="text-xl font-bold text-indigo-700">「翻訳者」としての専門性</h3>
+                            <p class="text-gray-700">
+                                Citation Japanの真の価値は、データ分析と大学特有の文化・課題を「翻訳」できる点にあります。
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li><strong class="text-gray-900">研究現場の理解:</strong> 研究者の評価軸やインセンティブを理解した上で、データ分析を行います。</li>
+                                <li><strong class="text-gray-900">経営と教育の連携:</strong> 研究力強化がどう教育の質に繋がり、最終的に学生募集（経営）に貢献するか、その連関をデータで示します。</li>
+                            </ul>
+                            <p class="text-gray-700">
+                                この「アカデミック分野への深い専門性」こそが、汎用的なコンサルファームやITベンダーにはない参入障壁となっています。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="service" class="py-20 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 class="section-title">サービスラインナップ</h2>
+                <p class="section-subtitle">
+                    同社のサービスは、大学経営の「P（計画）」「D（実行）」「C（評価）」「A（改善）」サイクル全般を網羅的に支援します。ここでは主要なサービス群を概観します。
+                </p>
+
+                <div class="max-w-3xl mx-auto space-y-4 text-left" id="accordion-container">
+                    <div class="accordion-item">
+                        <button class="accordion-header">
+                            <span>IR (インスティテューショナル・リサーチ) 支援</span>
+                            <span class="accordion-icon text-indigo-600 text-xl font-bold">+</span>
+                        </button>
+                        <div class="accordion-content hidden p-4 bg-gray-50 rounded-b-lg border border-t-0 border-gray-200">
+                            <p>学内に散在するデータを収集・統合・分析し、経営戦略や教育改善のための意思決定を支援します。ダッシュボードの構築から、データ分析人材の育成までを一気通貫でサポートします。</p>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <button class="accordion-header">
+                            <span>研究力分析・URA支援</span>
+                            <span class="accordion-icon text-indigo-600 text-xl font-bold">+</span>
+                        </button>
+                        <div class="accordion-content hidden p-4 bg-gray-50 rounded-b-lg border border-t-0 border-gray-200">
+                            <p>独自のデータベースと指標を用い、大学や研究室、個々の研究者の研究パフォーマンスを多角的に分析します。強み・弱みを特定し、URA（リサーチ・アドミニストレーター）と連携して研究戦略の立案を支援します。</p>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <button class="accordion-header">
+                            <span>教育・学習成果分析</span>
+                            <span class="accordion-icon text-indigo-600 text-xl font-bold">+</span>
+                        </button>
+                        <div class="accordion-content hidden p-4 bg-gray-50 rounded-b-lg border border-t-0 border-gray-200">
+                            <p>学生調査（アセスメント）の設計・実施から、GPAや履修履歴とのクロス分析まで行い、教育プログラムの成果を可視化します。特に中途退学の予兆分析と対策立案に強みがあります。</p>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <button class="accordion-header">
+                            <span>各種大学評価支援</span>
+                            <span class="accordion-icon text-indigo-600 text-xl font-bold">+</span>
+                        </button>
+                        <div class="accordion-content hidden p-4 bg-gray-50 rounded-b-lg border border-t-0 border-gray-200">
+                            <p>認証評価や内部質保証プロセスに必要なデータ収集、自己点検・評価報告書の作成支援など、大学の評価業務を効率化・高度化するコンサルティングを提供します。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="market" class="py-20 bg-gray-50 text-center">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="section-title">市場環境と競合ポジション</h2>
+                <p class="section-subtitle">
+                    Citation Japanが事業を展開する高等教育市場は、「少子化」と「グローバルな研究競争」という二重の圧力に晒されています。この厳しい環境が、皮肉にも同社のようなデータ分析支援の需要を喚起しています。
+                </p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-bold text-gray-900">市場トレンド: 大学経営の三重苦</h3>
+                        <p class="text-gray-600 text-left">
+                            現代の大学経営は、複数の深刻な課題に直面しています。これらの課題が複雑に絡み合い、データに基づく的確な現状把握と戦略立案（＝IR）の必要性を高めています。
+                        </p>
+                        <div class="chart-container">
+                            <canvas id="marketTrendsChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-bold text-gray-900">競合ポジショニングマップ</h3>
+                        <p class="text-gray-600 text-left">
+                            市場には強力な競合が存在します。特にグローバルのデータベース企業（Elsevier, Clarivate）はAI分析ツールを強化しています。Citation Japanは、「国内特化」と「コンサルティング」の領域で独自の地位を確立しています。
+                        </p>
+                        <div class="chart-container">
+                            <canvas id="positioningMapChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-12 max-w-5xl mx-auto bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">主要競合との比較</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">企業</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">強み</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">弱み・領域</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="bg-indigo-50">
+                                    <td class="px-4 py-3 font-medium text-gray-900">Citation Japan (当社)</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">国内事情への精通、研究・教育・経営の横断分析、伴走型コンサル</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">グローバルな網羅性、ブランド力、ツールのスケーラビリティ</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-900">Elsevier / Clarivate</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">グローバルな網羅的DB (Scopus, WoS)、高機能分析ツール (SciVal, InCites)</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">国内の紀要等に弱い、ツール提供が主、コンサル費用が高額</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-900">国内シンクタンク (NRI, MRI等)</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">経営戦略、組織改革コンサルの実績、政策提言力</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">研究力や教育成果のミクロな分析ノウハウは限定的</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-900">教育大手 (ベネッセ, リクルート)</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">学生募集、アセスメントツールの提供、高校・企業との接続</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">「研究力分析」や大学院レベルのIR支援は専門外</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="outlook" class="py-20 bg-white text-center">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="section-title">AI時代における将来展望とビジネス機会</h2>
+                <p class="section-subtitle">
+                    AIは、Citation Japanにとって最大の「機会」であると同時に、ビジネスモデルを破壊しかねない「脅威」でもあります。データ分析がコモディティ化する未来において、同社が取るべき戦略とは何でしょうか。
+                </p>
+
+                <div class="max-w-3xl mx-auto">
+                    <div class="mb-6 flex justify-center bg-gray-100 rounded-lg p-1.5 shadow-inner space-x-1">
+                        <button class="tab-button flex-1 active" data-tab-target="#outlook-tab-1">
+                            <span class="text-lg">🚀</span> 機会 (Opportunity)
+                        </button>
+                        <button class="tab-button flex-1" data-tab-target="#outlook-tab-2">
+                            <span class="text-lg">💣</span> 脅威 (Threat)
+                        </button>
+                        <button class="tab-button flex-1" data-tab-target="#outlook-tab-3">
+                            <span class="text-lg">🎯</span> 推奨戦略・ビジネス機会
+                        </button>
+                    </div>
+
+                    <div class="text-left bg-white p-6 rounded-lg shadow-md min-h-[350px] border border-gray-100">
+                        <div id="outlook-tab-1" class="tab-content space-y-4">
+                            <h3 class="text-xl font-bold text-green-700">AIによる分析の「超・高度化」</h3>
+                            <p class="text-gray-700">
+                                AI（特に生成AIや機械学習）は、同社の分析サービスを劇的に進化させる可能性を秘めています。
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li><strong class="text-gray-900">予測分析:</strong> 学生の退学予兆や、有望な研究分野のトレンドをより高精度に予測。</li>
+                                <li><strong class="text-gray-900">NPLによる定性分析:</strong> 論文や学生の自由記述コメントをAIが読み解き、定量データでは見えないインサイトを抽出。</li>
+                                <li><strong class="text-gray-900">新サービス創出:</strong> 「AIによる研究パートナーマッチング」「AIを活用したカリキュラム自動最適化提案」など、新次元のサービスが可能になります。</li>
+                            </ul>
+                        </div>
+                        <div id="outlook-tab-2" class="tab-content hidden space-y-4">
+                            <h3 class="text-xl font-bold text-red-700">「分析」のコモディティ化</h3>
+                            <p class="text-gray-700">
+                                AIがもたらす最大の脅威は、これまでの同社の強みであった「高度なデータ分析」そのものの価値が低下することです。
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li><strong class="text-gray-900">グローバル大手のAI攻勢:</strong> ElsevierやClarivateが、その膨大なデータをAIで分析する高機能・安価なツールを提供すれば、太刀打ちできない可能性があります。</li>
+                                <li><strong class="text-gray-900">大学の「内製化」:</strong> ChatGPTのような汎用AIの進化により、大学のIR担当者が自ら高度な分析を行えるようになり、外部コンサルの必要性が低下するリスクがあります。</li>
+                            </ul>
+                        </div>
+                        <div id="outlook-tab-3" class="tab-content hidden space-y-4">
+                            <h3 class="text-xl font-bold text-indigo-700">戦略: 「分析屋」から「実行パートナー」へ</h3>
+                            <p class="text-gray-700">
+                                AIに「分析」を任せられる時代だからこそ、人間（同社）の価値は「実行」にシフトします。
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li><strong class="text-gray-900">提案①: AI研修サービスの提供</strong><br>
+                                    大学教職員、URA、IR担当者向けに「AIをどう使いこなし、研究力強化や教育改善に繋げるか」という実践的な研修・コンサルティングは、まさに同社の専門領域であり、高い需要が見込めます。
+                                </li>
+                                <li><strong class="text-gray-900">提案②: 実行支援型ソリューション</strong><br>
+                                    分析して「終わり」ではなく、「退学防止プログラムの運営代行」「若手研究者育成プログラムの共同企画」など、大学の組織に入り込む「実行支援（BPO）」までサービスを拡大することが、AIとの差別化の鍵となります。
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-900 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+            <p class="text-sm text-gray-400">
+                本ページは、公開情報に基づき作成されたCitation Japanの企業分析レポートを視覚化したものです。<br>
+                シタシオン ジャパン株式会社: 設立 2008年 | 本社 東京都
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            const initCharts = () => {
+                const chartContext1 = document.getElementById('marketTrendsChart')?.getContext('2d');
+                if (chartContext1) {
+                    new Chart(chartContext1, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['少子化による定員割れ圧力', '研究力強化・資金獲得競争', '教育の質保証・学生支援'],
+                            datasets: [{
+                                label: '大学経営の課題',
+                                data: [40, 35, 25],
+                                backgroundColor: [
+                                    'rgba(79, 70, 229, 0.7)',  
+                                    'rgba(59, 130, 246, 0.7)', 
+                                    'rgba(167, 139, 250, 0.7)' 
+                                ],
+                                borderColor: [
+                                    'rgba(79, 70, 229, 1)',
+                                    'rgba(59, 130, 246, 1)',
+                                    'rgba(167, 139, 250, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed !== null) {
+                                                label += context.parsed + '%';
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const chartContext2 = document.getElementById('positioningMapChart')?.getContext('2d');
+                if (chartContext2) {
+                    new Chart(chartContext2, {
+                        type: 'bubble',
+                        data: {
+                            datasets: [
+                                {
+                                    label: 'Citation Japan',
+                                    data: [{ x: 2, y: 7, r: 15 }],
+                                    backgroundColor: 'rgba(79, 70, 229, 0.8)'
+                                },
+                                {
+                                    label: 'Elsevier / Clarivate',
+                                    data: [{ x: 8, y: 3, r: 25 }],
+                                    backgroundColor: 'rgba(219, 39, 119, 0.7)'
+                                },
+                                {
+                                    label: '国内シンクタンク',
+                                    data: [{ x: 3, y: 8, r: 10 }],
+                                    backgroundColor: 'rgba(245, 158, 11, 0.7)'
+                                },
+                                {
+                                    label: '教育大手（ベネッセ等）',
+                                    data: [{ x: 4, y: 2, r: 12 }],
+                                    backgroundColor: 'rgba(16, 185, 129, 0.7)'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: '← 国内特化 ... グローバル展開 →'
+                                    },
+                                    min: 0,
+                                    max: 10
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: '← 分析ツール提供 ... 伴走型コンサル →'
+                                    },
+                                    min: 0,
+                                    max: 10
+                                }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.dataset.label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            };
+
+            const initTabs = () => {
+                const tabContainers = document.querySelectorAll('.max-w-3xl'); 
+                tabContainers.forEach(container => {
+                    const tabButtons = container.querySelectorAll('.tab-button');
+                    const tabContents = container.querySelectorAll('.tab-content');
+
+                    if (tabButtons.length === 0 || tabContents.length === 0) return;
+
+                    tabButtons.forEach(button => {
+                        button.addEventListener('click', () => {
+                            const target = button.getAttribute('data-tab-target');
+                            
+                            tabButtons.forEach(btn => btn.classList.remove('active'));
+                            button.classList.add('active');
+                            
+                            tabContents.forEach(content => {
+                                if ('#' + content.id === target) {
+                                    content.classList.remove('hidden');
+                                } else {
+                                    content.classList.add('hidden');
+                                }
+                            });
+                        });
+                    });
+                });
+            };
+
+            const initAccordions = () => {
+                const accordionContainer = document.getElementById('accordion-container');
+                if (!accordionContainer) return;
+
+                const items = accordionContainer.querySelectorAll('.accordion-item');
+                
+                items.forEach(item => {
+                    const header = item.querySelector('.accordion-header');
+                    const content = item.querySelector('.accordion-content');
+                    const icon = item.querySelector('.accordion-icon');
+
+                    if (!header || !content || !icon) return;
+
+                    header.addEventListener('click', () => {
+                        const isOpen = !content.classList.contains('hidden');
+                        
+                        if (isOpen) {
+                            content.classList.add('hidden');
+                            icon.textContent = '+';
+                        } else {
+                            content.classList.remove('hidden');
+                            icon.textContent = '−'; 
+                        }
+                    });
+                });
+            };
+
+            const initNavScroll = () => {
+                const navLinks = document.querySelectorAll('.nav-link');
+                const sections = document.querySelectorAll('section');
+
+                navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const targetId = link.getAttribute('href');
+                        const targetElement = document.querySelector(targetId);
+                        if (targetElement) {
+                            const headerOffset = document.querySelector('header').offsetHeight;
+                            const elementPosition = targetElement.getBoundingClientRect().top;
+                            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                            window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                            });
+                        }
+                    });
+                });
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const id = entry.target.id;
+                            navLinks.forEach(link => {
+                                link.classList.remove('active');
+                                if (link.getAttribute('data-section') === id) {
+                                    link.classList.add('active');
+                                }
+                            });
+                        }
+                    });
+                }, { rootMargin: '-100px 0px -50% 0px', threshold: 0.1 }); 
+
+                sections.forEach(section => {
+                    observer.observe(section);
+                });
+            };
+
+            initCharts();
+            initTabs();
+            initAccordions();
+            initNavScroll();
+        });
+    </script>
+</body>
+</html>
